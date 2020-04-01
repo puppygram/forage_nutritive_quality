@@ -1,0 +1,37 @@
+---
+title: "data_tidying"
+author: "Hannah Phillips"
+date: "April 1, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(readxl) #read data
+library(tidyverse) #piping
+```
+
+```{r}
+#clean up residual and Biomass data
+Biomass.dat = read_excel("C:/Users/Hannah/Desktop/Forage paper/Nutritive value/data/original_yield_data.xlsx", sheet = "Supply") %>%
+  mutate(Biomass = (Bag_sample_dry - Bag) * 0.000001 / 0.000023) %>% #convert g to Mg per ha
+  mutate(DM = (Bag_sample_dry - Bag) / (Bag_sample_wet - Bag)) %>%
+  mutate_at(vars(Forage, Rep, Pen), as.factor) %>%
+  dplyr::select(c(Rep, Day, Pen, Forage, Biomass, DM)) %>%
+  mutate(Biomass = ifelse(Biomass < 0 | DM > 1 | DM < 0, NA, Biomass)) %>%
+  mutate(Biomass = ifelse(Day == 46 & Pen == 3, NA, Biomass)) %>% #remove pen, it was mixed up with another sample
+  dplyr::select(c(Day, Pen, Forage, Biomass)) %>%
+  group_by(Day, Pen, Forage) %>%
+  summarise_all(funs(mean(., na.rm = T)))
+
+quality.dat = read_excel("C:/Users/Hannah/Desktop/Forage paper/Nutritive value/data/original_nutritive_value_data.xlsx") %>% 
+              mutate(Day = Day - 1) %>% 
+              dplyr::select(c(Day, Pen, Paddock, Regrowth, Grazing_no, Forage, CP, Fat, NDF, NFC, TTNDFD))
+
+#merges yield and nutritive value data
+dat = merge(quality.dat, Biomass.dat, by = c("Day", "Pen", "Forage"), all.x  = T) %>%    
+    mutate_at(vars(Forage, Paddock, Pen), as.factor)
+
+write.csv(dat, 'biomass_and_quality_data.csv')
+```
