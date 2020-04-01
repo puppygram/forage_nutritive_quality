@@ -19,6 +19,7 @@ library(ggplot2) #plots
 library(merTools)
 library(afex) #CIs
 library(dplyr)
+library(lsmeans)
 
 dat <- read_excel("biomass_and_quality_data.xlsx") %>%
   mutate_at(vars(Pen, Forage, Paddock), as.factor) %>%
@@ -42,12 +43,6 @@ predict.fun <- function(my.lmm) {
 
 # yield
 ```{r, message = F}
-ggplot(data = dat, 
-       aes(x = Day, y = Biomass, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
 model = lmer(Biomass ~ poly(Day, 3)*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, 
                           Forage <- relevel(Forage, ref = "Rye")))
@@ -141,7 +136,7 @@ quantile(data.frame(boot.ci.yield$X91 - boot.ci.yield$X44)[,1], 0.975)
   theme_classic() +
     
   labs(x = "Day of grazing period", 
-       y = "Biomass yield, Mg ha\u207B\u00B9") +  
+       y = "Biomass yield, Mg of dry matter ha\u207B\u00B9") +  
   
   scale_y_continuous(breaks = seq(0, 6, 1), 
                      limits = c(0, 6), expand = c(0,0)) +
@@ -162,13 +157,6 @@ quantile(data.frame(boot.ci.yield$X91 - boot.ci.yield$X44)[,1], 0.975)
 
 # CP
 ```{r, message = F}
-hist(dat$CP)
-ggplot(data = dat, 
-       aes(x = Day, y = CP, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
 model = lmer(CP ~ Day*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Wheat")))
 
@@ -271,16 +259,10 @@ quantile(data.frame(boot.ci.ndf$X37 - boot.ci.ndf$X84)[,1], 0.975)
 
 # fat
 ```{r, message = F}
-hist(dat$Fat)
-ggplot(data = dat, 
-       aes(x = Day, y = Fat, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
-model = lmer(Fat ~ poly(Day,2)*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Wheat")))
+model = lmer(Fat ~ poly(Day,2)*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
 
+confint(pairs(emmeans(model, "Forage")))
 
 #diagnostics
 plot(model, main = "Residuals vs fitted")
@@ -307,6 +289,11 @@ newDat.fat$fit <- predict.fun(model)
 
 # 95% confidence intervals based on 1000 bootstrap resamples 
 newDat.fat <- cbind(newDat.fat, confint(bootMer(model, predict.fun, nsim = 1000, seed = 1), type = "perc"))
+
+min(subset(newDat.fat, Forage == "Rye")$fit)
+max(subset(newDat.fat, Forage == "Rye")$fit)
+min(subset(newDat.fat, Forage == "Wheat")$fit)
+max(subset(newDat.fat, Forage == "Wheat")$fit)
 
 {
   ggplot(data = dat, 
@@ -358,17 +345,8 @@ newDat.fat <- cbind(newDat.fat, confint(bootMer(model, predict.fun, nsim = 1000,
 
 # NFC
 ```{r, message = F}
-hist(dat$NFC)
-ggplot(data = dat, 
-       aes(x = Day, y = NFC, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
-model = lmer(NFC ~ poly(Day,3)*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
-model = lmer(NFC ~ poly(Day,2)*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
-
+model = lmer(NFC ~ Day*Forage + (1|Pen) + (1|Paddock/Forage), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
 
 #diagnostics
 plot(model, main = "Residuals vs fitted")
@@ -451,16 +429,8 @@ max(subset(newDat.nfc, Forage == "Wheat")$fit)
 
 # NDF
 ```{r, message = F}
-hist(dat$NDF)
-ggplot(data = dat, 
-       aes(x = Day, y = NDF, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
 model = lmer(NDF ~ poly(Day, 2)*Forage + (1|Pen) + (1|Paddock/Forage), control = lmerControl(optimizer = "Nelder_Mead"), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
-
 
 #diagnostics
 plot(model, main = "Residuals vs fitted")
@@ -563,13 +533,6 @@ quantile(data.frame(boot.ci.ndf$X37 - boot.ci.ndf$X84)[,1], 0.975)
 
 # TTNDFD
 ```{r, message = F}
-hist(dat$TTNDFD)
-ggplot(data = dat, 
-       aes(x = Day, y = TTNDFD, color = Forage)) + 
-  geom_point(size = 2, 
-             show.legend = T,
-             position = position_jitter(h = 0.01, w = 0.01))
-
 #model
 model = lmer(TTNDFD ~ poly(Day,2)*Forage + (1|Pen) + (1|Paddock/Forage), control = lmerControl(optimizer = "Nelder_Mead"), data = within(dat, Forage <- relevel(Forage, ref = "Rye")))
 
